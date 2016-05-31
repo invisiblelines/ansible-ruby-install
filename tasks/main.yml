@@ -1,0 +1,44 @@
+---
+  - name: install dependencies
+    become: yes
+    apt:
+      pkg={{ item }} state=installed update_cache=true
+    with_items:
+      - build-essential
+
+  - name: fetch ruby-install
+    become: yes
+    get_url:
+      url=https://github.com/postmodern/ruby-install/archive/v{{ ruby_install_version }}.tar.gz
+      dest=/tmp
+    register: ruby_install_downloaded
+
+  - name: unarchive
+    become: yes
+    unarchive:
+      copy=no
+      src={{ ruby_install_downloaded.dest }}
+      dest=/tmp
+    when: ruby_install_downloaded|changed
+
+  - name: install
+    become: yes
+    shell: make install
+    args:
+      chdir: /tmp/ruby-install-{{ ruby_install_version }}
+    when: ruby_install_downloaded|changed
+
+  - name: cleanup tmp
+    become: yes
+    file:
+      path=/tmp/{{ item }}
+      state=absent
+    with_items:
+      - /ruby-install-{{ ruby_install_version }}
+      - /ruby-install-{{ ruby_install_version }}/tar.gz
+    when: ruby_install_downloaded|changed
+
+  - name: install rubies
+    become: yes
+    shell: ruby-install {{ item }}
+    with_items: ruby_install_rubies
